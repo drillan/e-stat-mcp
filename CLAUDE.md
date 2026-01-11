@@ -237,9 +237,10 @@ if not data:
 - **型チェック**: mypy（必須）
 
 ## Recent Changes
+- 001-pagination-info: Added Python 3.13 + mcp[cli]>=1.2.0, pydantic>=2.0
 - 001-e-stat-mcp: Added Python 3.13 + mcp[cli]>=1.2.0, pydantic>=2.0, pydantic-settings>=2.0, httpx>=0.27, cachetools>=5.0
 - 001-e-stat-mcp: Added [if applicable, e.g., PostgreSQL, CoreData, files or N/A]
 
 ## Active Technologies
-- Python 3.13 + mcp[cli]>=1.2.0, pydantic>=2.0, pydantic-settings>=2.0, httpx>=0.27, cachetools>=5.0 (001-e-stat-mcp)
-- N/A（ステートレス、インメモリキャッシュのみ） (001-e-stat-mcp)
+- Python 3.13 + mcp[cli]>=1.2.0, pydantic>=2.0 (001-pagination-info)
+- N/A（既存実装への増分変更） (001-pagination-info)
