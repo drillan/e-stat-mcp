@@ -439,10 +439,19 @@ class EStatClient:
         items = [self._value_to_item(v, class_map) for v in data_values]
 
         total_count = self._get_total_count(response)
+        returned_count = len(items)
+
+        # ページネーション計算
+        # has_next: 現在位置 + 取得件数 - 1 < 総件数 の場合、次ページあり
+        has_next = (start_position + returned_count - 1) < total_count
+        next_start_position = start_position + returned_count if has_next else None
+
         return StatsDataResult(
             total_count=total_count,
-            returned_count=len(items),
+            returned_count=returned_count,
             data=items,
+            has_next=has_next,
+            next_start_position=next_start_position,
         )
 
     def _build_class_map(self, class_info_list: list[ClassInfo]) -> dict[str, dict[str, str]]:
@@ -596,8 +605,17 @@ class EStatClient:
         items = [self._value_to_item(v, class_map) for v in data_values]
 
         total_count = self._get_total_count(response)
+        returned_count = len(items)
+
+        # ページネーション計算
+        # has_next: 現在位置 + 取得件数 - 1 < 総件数 の場合、次ページあり
+        has_next = (start_position + returned_count - 1) < total_count
+        next_start_position = start_position + returned_count if has_next else None
+
         return StatsDataResult(
             total_count=total_count,
-            returned_count=len(items),
+            returned_count=returned_count,
             data=items,
+            has_next=has_next,
+            next_start_position=next_start_position,
         )

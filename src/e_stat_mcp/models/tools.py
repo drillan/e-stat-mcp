@@ -96,8 +96,19 @@ class GetDatasetDataRequest(BaseModel):
 
 
 class StatsDataResult(BaseModel):
-    """統計データ取得結果."""
+    """統計データ取得結果.
+
+    ページネーション:
+        データが複数ページにわたる場合、has_nextがTrueになります。
+        次のページを取得するには、next_start_positionの値を
+        start_positionパラメータに指定して再度呼び出してください。
+    """
 
     total_count: int = Field(..., description="総データ件数")
     returned_count: int = Field(..., description="今回返却した件数")
     data: list[StatsDataItem] = Field(..., description="統計データリスト")
+    has_next: bool = Field(..., description="次ページが存在するかどうか")
+    next_start_position: int | None = Field(
+        None,
+        description="次回使用すべきstart_position（次ページがない場合はNone）",
+    )
