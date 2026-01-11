@@ -201,6 +201,151 @@ class TestGetStatsDataTool:
         assert isinstance(result["returned_count"], int)
         assert isinstance(result["data"], list)
 
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_get_stats_data_pagination_fields(self, mock_env: None) -> None:
+        """get_stats_dataがページネーションフィールドを返すこと（T004）.
+
+        Contract: Result must include has_next and next_start_position fields
+        for pagination support.
+        """
+        from e_stat_mcp.server import get_stats_data
+
+        mock_response = {
+            "GET_STATS_DATA": {
+                "RESULT": {
+                    "STATUS": 0,
+                    "ERROR_MSG": "正常に終了しました。",
+                    "DATE": "2024-01-01T00:00:00.000+09:00",
+                },
+                "PARAMETER": {"LANG": "J"},
+                "STATISTICAL_DATA": {
+                    "CLASS_INF": {"CLASS_OBJ": []},
+                    "DATA_INF": {"@totalNumber": "25000", "VALUE": []},
+                },
+            }
+        }
+
+        respx.get("https://api.e-stat.go.jp/rest/3.0/app/json/getStatsData").mock(
+            return_value=httpx.Response(200, json=mock_response)
+        )
+
+        result = await get_stats_data(stats_data_id="0003410379", limit=10000)
+
+        # Contract: Pagination fields must exist
+        assert "has_next" in result
+        assert "next_start_position" in result
+
+        # Contract: Types
+        assert isinstance(result["has_next"], bool)
+        assert result["next_start_position"] is None or isinstance(
+            result["next_start_position"], int
+        )
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_get_stats_data_pagination_has_next_true(self, mock_env: None) -> None:
+        """get_stats_dataが次ページありの場合に正しく返すこと.
+
+        Given: total_count > returned_count
+        Then: has_next=True, next_start_position=start_position + returned_count
+        """
+        from e_stat_mcp.server import get_stats_data
+
+        # 25000件中10000件取得（limit=10000）→ 次ページあり
+        # returned_count=0の場合は無限ループ防止のためhas_next=Falseとなる
+        mock_values = [
+            {"@tab": "001", "$": "100"}
+            for _ in range(10000)  # 10000件のデータ
+        ]
+        mock_response = {
+            "GET_STATS_DATA": {
+                "RESULT": {
+                    "STATUS": 0,
+                    "ERROR_MSG": "正常に終了しました。",
+                    "DATE": "2024-01-01T00:00:00.000+09:00",
+                },
+                "PARAMETER": {"LANG": "J"},
+                "STATISTICAL_DATA": {
+                    "CLASS_INF": {
+                        "CLASS_OBJ": [
+                            {
+                                "@id": "tab",
+                                "@name": "表章事項",
+                                "CLASS": [{"@code": "001", "$": "人口"}],
+                            }
+                        ]
+                    },
+                    "DATA_INF": {"@totalNumber": "25000", "VALUE": mock_values},
+                },
+            }
+        }
+
+        respx.get("https://api.e-stat.go.jp/rest/3.0/app/json/getStatsData").mock(
+            return_value=httpx.Response(200, json=mock_response)
+        )
+
+        # Request with start_position=1, total=25000, returned=10000
+        result = await get_stats_data(stats_data_id="0003410379", limit=10000, start_position=1)
+
+        # has_next should be True when there are more records
+        assert result["has_next"] is True
+        assert result["next_start_position"] == 10001
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_get_stats_data_pagination_has_next_false(self, mock_env: None) -> None:
+        """get_stats_dataが最終ページの場合に正しく返すこと.
+
+        Given: This is the last page (start_position + returned_count - 1 >= total_count)
+        Then: has_next=False, next_start_position=None
+        """
+        from e_stat_mcp.server import get_stats_data
+
+        # 5000件中5000件取得 → 最終ページ
+        mock_response = {
+            "GET_STATS_DATA": {
+                "RESULT": {
+                    "STATUS": 0,
+                    "ERROR_MSG": "正常に終了しました。",
+                    "DATE": "2024-01-01T00:00:00.000+09:00",
+                },
+                "PARAMETER": {"LANG": "J"},
+                "STATISTICAL_DATA": {
+                    "CLASS_INF": {
+                        "CLASS_OBJ": [
+                            {
+                                "@id": "tab",
+                                "@name": "表章事項",
+                                "CLASS": [{"@code": "001", "$": "人口"}],
+                            }
+                        ]
+                    },
+                    "DATA_INF": {
+                        "@totalNumber": "1",
+                        "VALUE": [
+                            {
+                                "@tab": "001",
+                                "@unit": "人",
+                                "$": "126000000",
+                            }
+                        ],
+                    },
+                },
+            }
+        }
+
+        respx.get("https://api.e-stat.go.jp/rest/3.0/app/json/getStatsData").mock(
+            return_value=httpx.Response(200, json=mock_response)
+        )
+
+        # total=1, start=1, returned=1 → (1+1-1)=1 >= 1 → has_next=False
+        result = await get_stats_data(stats_data_id="0003410379", limit=10000, start_position=1)
+
+        # has_next should be False when no more records
+        assert result["has_next"] is False
+        assert result["next_start_position"] is None
+
 
 class TestGetMetaInfoTool:
     """get_meta_infoツールのコントラクトテスト."""
@@ -436,3 +581,147 @@ class TestGetDatasetDataTool:
         assert isinstance(result["total_count"], int)
         assert isinstance(result["returned_count"], int)
         assert isinstance(result["data"], list)
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_get_dataset_data_pagination_fields(self, mock_env: None) -> None:
+        """get_dataset_dataがページネーションフィールドを返すこと（T005）.
+
+        Contract: Result must include has_next and next_start_position fields
+        for pagination support.
+        """
+        from e_stat_mcp.server import get_dataset_data
+
+        mock_response = {
+            "REF_DATASET": {
+                "RESULT": {
+                    "STATUS": 0,
+                    "ERROR_MSG": "正常に終了しました。",
+                    "DATE": "2024-01-01T00:00:00.000+09:00",
+                },
+                "PARAMETER": {"LANG": "J"},
+                "STATISTICAL_DATA": {
+                    "CLASS_INF": {"CLASS_OBJ": []},
+                    "DATA_INF": {"@totalNumber": "25000", "VALUE": []},
+                },
+            }
+        }
+
+        respx.get("https://api.e-stat.go.jp/rest/3.0/app/json/refDataset").mock(
+            return_value=httpx.Response(200, json=mock_response)
+        )
+
+        result = await get_dataset_data(dataset_id="DS001", limit=10000)
+
+        # Contract: Pagination fields must exist
+        assert "has_next" in result
+        assert "next_start_position" in result
+
+        # Contract: Types
+        assert isinstance(result["has_next"], bool)
+        assert result["next_start_position"] is None or isinstance(
+            result["next_start_position"], int
+        )
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_get_dataset_data_pagination_has_next_true(self, mock_env: None) -> None:
+        """get_dataset_dataが次ページありの場合に正しく返すこと.
+
+        Given: total_count > returned_count
+        Then: has_next=True, next_start_position is set
+        """
+        from e_stat_mcp.server import get_dataset_data
+
+        # 25000件中10000件取得（limit=10000）→ 次ページあり
+        # returned_count=0の場合は無限ループ防止のためhas_next=Falseとなる
+        mock_values = [
+            {"@tab": "001", "$": "100"}
+            for _ in range(10000)  # 10000件のデータ
+        ]
+        mock_response = {
+            "REF_DATASET": {
+                "RESULT": {
+                    "STATUS": 0,
+                    "ERROR_MSG": "正常に終了しました。",
+                    "DATE": "2024-01-01T00:00:00.000+09:00",
+                },
+                "PARAMETER": {"LANG": "J"},
+                "STATISTICAL_DATA": {
+                    "CLASS_INF": {
+                        "CLASS_OBJ": [
+                            {
+                                "@id": "tab",
+                                "@name": "表章事項",
+                                "CLASS": [{"@code": "001", "$": "人口"}],
+                            }
+                        ]
+                    },
+                    "DATA_INF": {"@totalNumber": "25000", "VALUE": mock_values},
+                },
+            }
+        }
+
+        respx.get("https://api.e-stat.go.jp/rest/3.0/app/json/refDataset").mock(
+            return_value=httpx.Response(200, json=mock_response)
+        )
+
+        result = await get_dataset_data(dataset_id="DS001", limit=10000, start_position=1)
+
+        # has_next should be True when there are more records
+        assert result["has_next"] is True
+        assert result["next_start_position"] == 10001
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_get_dataset_data_pagination_has_next_false(self, mock_env: None) -> None:
+        """get_dataset_dataが最終ページの場合に正しく返すこと.
+
+        Given: This is the last page (start_position + returned_count - 1 >= total_count)
+        Then: has_next=False, next_start_position=None
+        """
+        from e_stat_mcp.server import get_dataset_data
+
+        # 1件中1件取得 → 最終ページ
+        mock_response = {
+            "REF_DATASET": {
+                "RESULT": {
+                    "STATUS": 0,
+                    "ERROR_MSG": "正常に終了しました。",
+                    "DATE": "2024-01-01T00:00:00.000+09:00",
+                },
+                "PARAMETER": {"LANG": "J"},
+                "STATISTICAL_DATA": {
+                    "CLASS_INF": {
+                        "CLASS_OBJ": [
+                            {
+                                "@id": "tab",
+                                "@name": "表章事項",
+                                "CLASS": [{"@code": "001", "$": "人口"}],
+                            }
+                        ]
+                    },
+                    "DATA_INF": {
+                        "@totalNumber": "1",
+                        "VALUE": [
+                            {
+                                "@tab": "001",
+                                "@unit": "人",
+                                "$": "126000000",
+                            }
+                        ],
+                    },
+                },
+            }
+        }
+
+        respx.get("https://api.e-stat.go.jp/rest/3.0/app/json/refDataset").mock(
+            return_value=httpx.Response(200, json=mock_response)
+        )
+
+        # total=1, start=1, returned=1 → (1+1-1)=1 >= 1 → has_next=False
+        result = await get_dataset_data(dataset_id="DS001", limit=10000, start_position=1)
+
+        # has_next should be False when no more records
+        assert result["has_next"] is False
+        assert result["next_start_position"] is None

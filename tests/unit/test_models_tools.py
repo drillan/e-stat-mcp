@@ -175,10 +175,100 @@ class TestStatsDataResult:
                     value_raw="126000000",
                 )
             ],
+            has_next=True,
+            next_start_position=11,
         )
         assert result.total_count == 100
         assert result.returned_count == 10
         assert len(result.data) == 1
+        assert result.has_next is True
+        assert result.next_start_position == 11
+
+    def test_create_result_has_next_true(self) -> None:
+        """次ページが存在する場合のテスト（T001）.
+
+        Given: 総件数がlimitを超えるデータ
+        When: StatsDataResultを作成する
+        Then: has_next=True, next_start_positionが正しく設定される
+        """
+        result = StatsDataResult(
+            total_count=25000,
+            returned_count=10000,
+            data=[],
+            has_next=True,
+            next_start_position=10001,
+        )
+        assert result.has_next is True
+        assert result.next_start_position == 10001
+
+    def test_create_result_has_next_false(self) -> None:
+        """次ページが存在しない場合のテスト（T002）.
+
+        Given: 総件数がlimit以下のデータ
+        When: StatsDataResultを作成する
+        Then: has_next=False, next_start_position=None
+        """
+        result = StatsDataResult(
+            total_count=5000,
+            returned_count=5000,
+            data=[],
+            has_next=False,
+            next_start_position=None,
+        )
+        assert result.has_next is False
+        assert result.next_start_position is None
+
+    def test_create_result_empty_data(self) -> None:
+        """空の結果の場合のテスト（T003 - 境界条件）.
+
+        Given: 空の結果（returned_count=0）
+        When: StatsDataResultを作成する
+        Then: has_next=False, next_start_position=None
+        """
+        result = StatsDataResult(
+            total_count=0,
+            returned_count=0,
+            data=[],
+            has_next=False,
+            next_start_position=None,
+        )
+        assert result.has_next is False
+        assert result.next_start_position is None
+        assert result.returned_count == 0
+
+    def test_create_result_exactly_limit(self) -> None:
+        """ちょうどlimit件の場合のテスト（T003 - 境界条件）.
+
+        Given: 総件数とreturned_countが等しい
+        When: StatsDataResultを作成する
+        Then: has_next=False, next_start_position=None
+        """
+        result = StatsDataResult(
+            total_count=10000,
+            returned_count=10000,
+            data=[],
+            has_next=False,
+            next_start_position=None,
+        )
+        assert result.has_next is False
+        assert result.next_start_position is None
+
+    def test_create_result_last_page(self) -> None:
+        """最終ページの場合のテスト（T003 - 境界条件）.
+
+        Given: 最終ページのデータ（start_position=20001, returned_count=5000, total=25000）
+        When: StatsDataResultを作成する
+        Then: has_next=False, next_start_position=None
+        """
+        result = StatsDataResult(
+            total_count=25000,
+            returned_count=5000,
+            data=[],
+            has_next=False,
+            next_start_position=None,
+        )
+        assert result.has_next is False
+        assert result.next_start_position is None
 
 
 class TestGetMetaInfoRequest:

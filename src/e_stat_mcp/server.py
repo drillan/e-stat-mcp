@@ -121,7 +121,7 @@ async def get_stats_data(
     cd_time: str | None = None,
     limit: int = 10000,
     start_position: int = 1,
-) -> dict[str, int | list[dict[str, str | float | dict[str, str] | None]]]:
+) -> dict[str, int | bool | list[dict[str, str | float | dict[str, str] | None]] | None]:
     """統計データを取得します.
 
     Args:
@@ -139,9 +139,27 @@ async def get_stats_data(
         - total_count: 総データ件数
         - returned_count: 今回返却した件数
         - data: 統計データのリスト
+        - has_next: 次ページが存在するかどうか
+        - next_start_position: 次回使用すべきstart_position（次ページがない場合はNone）
 
     Raises:
         EStatApiError: API呼び出しに失敗した場合
+
+    ページネーション使用例:
+        データが10万件を超える場合、ページネーションが必要です。
+
+        1. 最初のリクエスト:
+           result = get_stats_data(stats_data_id="...", limit=10000)
+
+        2. has_nextがTrueの場合、次ページを取得:
+           if result["has_next"]:
+               next_result = get_stats_data(
+                   stats_data_id="...",
+                   limit=10000,
+                   start_position=result["next_start_position"]
+               )
+
+        3. has_nextがFalseになるまで繰り返す
     """
     request = GetStatsDataRequest(
         stats_data_id=stats_data_id,
@@ -183,6 +201,8 @@ async def get_stats_data(
                     }
                     for item in result.data
                 ],
+                "has_next": result.has_next,
+                "next_start_position": result.next_start_position,
             }
         finally:
             await client.close()
@@ -292,7 +312,7 @@ async def get_dataset_data(
     dataset_id: str,
     limit: int = 10000,
     start_position: int = 1,
-) -> dict[str, int | list[dict[str, str | float | dict[str, str] | None]]]:
+) -> dict[str, int | bool | list[dict[str, str | float | dict[str, str] | None]] | None]:
     """データセットのデータを取得します.
 
     Args:
@@ -305,9 +325,27 @@ async def get_dataset_data(
         - total_count: 総データ件数
         - returned_count: 今回返却した件数
         - data: 統計データのリスト
+        - has_next: 次ページが存在するかどうか
+        - next_start_position: 次回使用すべきstart_position（次ページがない場合はNone）
 
     Raises:
         EStatApiError: API呼び出しに失敗した場合
+
+    ページネーション使用例:
+        データが10万件を超える場合、ページネーションが必要です。
+
+        1. 最初のリクエスト:
+           result = get_dataset_data(dataset_id="...", limit=10000)
+
+        2. has_nextがTrueの場合、次ページを取得:
+           if result["has_next"]:
+               next_result = get_dataset_data(
+                   dataset_id="...",
+                   limit=10000,
+                   start_position=result["next_start_position"]
+               )
+
+        3. has_nextがFalseになるまで繰り返す
     """
     request = GetDatasetDataRequest(
         dataset_id=dataset_id,
@@ -339,6 +377,8 @@ async def get_dataset_data(
                     }
                     for item in result.data
                 ],
+                "has_next": result.has_next,
+                "next_start_position": result.next_start_position,
             }
         finally:
             await client.close()
