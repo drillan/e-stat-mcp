@@ -1,0 +1,129 @@
+[project]
+name = "e-stat-mcp"
+version = "0.1.0"
+description = "e-Stat API連携MCPサーバー"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "mcp[cli]>=1.2.0",
+    "pydantic>=2.0",
+    "pydantic-settings>=2.0",
+    "httpx>=0.27",
+    "cachetools>=5.0",
+]
+
+[dependency-groups]
+dev = [
+    "mypy>=1.19.1",
+    "pytest>=9.0.2",
+    "pytest-asyncio>=0.25.0",
+    "pytest-cov>=6.1.1",
+    "respx>=0.22.0",
+    "ruff>=0.14.10",
+]
+docs = [
+    "myst-parser>=4.0.1",
+    "sphinx>=8.2.3",
+    "sphinx-rtd-theme>=3.0.2",
+    "sphinxcontrib-mermaid>=1.2.3",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/e_stat_mcp"]
+
+# Ruff configuration
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",     # pycodestyle errors
+    "W",     # pycodestyle warnings
+    "F",     # Pyflakes
+    "I",     # isort
+    "B",     # flake8-bugbear
+    "C4",    # flake8-comprehensions
+    "UP",    # pyupgrade
+    "ARG",   # flake8-unused-arguments
+    "SIM",   # flake8-simplify
+    "TCH",   # flake8-type-checking
+    "PTH",   # flake8-use-pathlib
+    "RUF",   # Ruff-specific rules
+]
+ignore = [
+    "E501",   # line too long (handled by formatter)
+    "RUF001", # ambiguous unicode character in string (intentional Japanese)
+    "RUF002", # ambiguous unicode character in docstring (intentional Japanese)
+    "RUF003", # ambiguous unicode character in comment (intentional Japanese)
+    "RUF022", # __all__ is not sorted (intentional grouping for clarity)
+    "TC001",  # move application import into TYPE_CHECKING (not needed for this project)
+    "TC002",  # move third-party import into TYPE_CHECKING (not needed for this project)
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["e_stat_mcp"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["ARG002"]  # Unused method argument (fixtures)
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+# Mypy configuration
+[tool.mypy]
+python_version = "3.13"
+strict = true
+warn_return_any = true
+warn_unused_ignores = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_configs = true
+show_error_codes = true
+plugins = ["pydantic.mypy"]
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
+warn_untyped_fields = true
+
+[[tool.mypy.overrides]]
+module = ["cachetools.*"]
+ignore_missing_imports = true
+
+# Pytest configuration
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+addopts = "-v --tb=short"
+markers = [
+    "integration: marks tests as integration tests (deselect with '-m \"not integration\"')",
+    "contract: marks tests as contract tests",
+]
+
+# Coverage configuration
+[tool.coverage.run]
+source = ["src/e_stat_mcp"]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+]
