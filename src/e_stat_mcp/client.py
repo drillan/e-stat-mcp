@@ -35,6 +35,32 @@ logger = logging.getLogger(__name__)
 T = TypeVar("T", bound=BaseModel)
 
 
+def _calculate_pagination(
+    start_position: int,
+    returned_count: int,
+    total_count: int,
+) -> tuple[bool, int | None]:
+    """ページネーション情報を計算.
+
+    Args:
+        start_position: 取得開始位置
+        returned_count: 今回取得した件数
+        total_count: 総データ件数
+
+    Returns:
+        (has_next, next_start_position) のタプル
+        - has_next: 次のページがあるかどうか
+        - next_start_position: 次のページの開始位置（次ページがない場合はNone）
+    """
+    # returned_count=0の場合は次ページなし（無限ループ防止）
+    if returned_count == 0:
+        return False, None
+    # 現在位置 + 取得件数 - 1 < 総件数 の場合、次ページあり
+    has_next = (start_position + returned_count - 1) < total_count
+    next_start_position = start_position + returned_count if has_next else None
+    return has_next, next_start_position
+
+
 class EStatApiError(Exception):
     """e-Stat APIエラー."""
 
@@ -441,10 +467,9 @@ class EStatClient:
         total_count = self._get_total_count(response)
         returned_count = len(items)
 
-        # ページネーション計算
-        # has_next: 現在位置 + 取得件数 - 1 < 総件数 の場合、次ページあり
-        has_next = (start_position + returned_count - 1) < total_count
-        next_start_position = start_position + returned_count if has_next else None
+        has_next, next_start_position = _calculate_pagination(
+            start_position, returned_count, total_count
+        )
 
         return StatsDataResult(
             total_count=total_count,
@@ -607,10 +632,9 @@ class EStatClient:
         total_count = self._get_total_count(response)
         returned_count = len(items)
 
-        # ページネーション計算
-        # has_next: 現在位置 + 取得件数 - 1 < 総件数 の場合、次ページあり
-        has_next = (start_position + returned_count - 1) < total_count
-        next_start_position = start_position + returned_count if has_next else None
+        has_next, next_start_position = _calculate_pagination(
+            start_position, returned_count, total_count
+        )
 
         return StatsDataResult(
             total_count=total_count,

@@ -252,6 +252,12 @@ class TestGetStatsDataTool:
         """
         from e_stat_mcp.server import get_stats_data
 
+        # 25000件中10000件取得（limit=10000）→ 次ページあり
+        # returned_count=0の場合は無限ループ防止のためhas_next=Falseとなる
+        mock_values = [
+            {"@tab": "001", "$": "100"}
+            for _ in range(10000)  # 10000件のデータ
+        ]
         mock_response = {
             "GET_STATS_DATA": {
                 "RESULT": {
@@ -261,8 +267,16 @@ class TestGetStatsDataTool:
                 },
                 "PARAMETER": {"LANG": "J"},
                 "STATISTICAL_DATA": {
-                    "CLASS_INF": {"CLASS_OBJ": []},
-                    "DATA_INF": {"@totalNumber": "25000", "VALUE": []},
+                    "CLASS_INF": {
+                        "CLASS_OBJ": [
+                            {
+                                "@id": "tab",
+                                "@name": "表章事項",
+                                "CLASS": [{"@code": "001", "$": "人口"}],
+                            }
+                        ]
+                    },
+                    "DATA_INF": {"@totalNumber": "25000", "VALUE": mock_values},
                 },
             }
         }
@@ -271,13 +285,12 @@ class TestGetStatsDataTool:
             return_value=httpx.Response(200, json=mock_response)
         )
 
-        # Request with start_position=1, total=25000, returned=0 (mock returns empty)
-        # In real scenario, returned_count would be min(limit, total_count)
+        # Request with start_position=1, total=25000, returned=10000
         result = await get_stats_data(stats_data_id="0003410379", limit=10000, start_position=1)
 
         # has_next should be True when there are more records
         assert result["has_next"] is True
-        assert result["next_start_position"] is not None
+        assert result["next_start_position"] == 10001
 
     @pytest.mark.asyncio
     @respx.mock
@@ -620,6 +633,12 @@ class TestGetDatasetDataTool:
         """
         from e_stat_mcp.server import get_dataset_data
 
+        # 25000件中10000件取得（limit=10000）→ 次ページあり
+        # returned_count=0の場合は無限ループ防止のためhas_next=Falseとなる
+        mock_values = [
+            {"@tab": "001", "$": "100"}
+            for _ in range(10000)  # 10000件のデータ
+        ]
         mock_response = {
             "REF_DATASET": {
                 "RESULT": {
@@ -629,8 +648,16 @@ class TestGetDatasetDataTool:
                 },
                 "PARAMETER": {"LANG": "J"},
                 "STATISTICAL_DATA": {
-                    "CLASS_INF": {"CLASS_OBJ": []},
-                    "DATA_INF": {"@totalNumber": "25000", "VALUE": []},
+                    "CLASS_INF": {
+                        "CLASS_OBJ": [
+                            {
+                                "@id": "tab",
+                                "@name": "表章事項",
+                                "CLASS": [{"@code": "001", "$": "人口"}],
+                            }
+                        ]
+                    },
+                    "DATA_INF": {"@totalNumber": "25000", "VALUE": mock_values},
                 },
             }
         }
@@ -643,7 +670,7 @@ class TestGetDatasetDataTool:
 
         # has_next should be True when there are more records
         assert result["has_next"] is True
-        assert result["next_start_position"] is not None
+        assert result["next_start_position"] == 10001
 
     @pytest.mark.asyncio
     @respx.mock

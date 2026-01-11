@@ -8,9 +8,63 @@ import httpx
 import pytest
 import respx
 
-from e_stat_mcp.client import EStatApiError, EStatClient
+from e_stat_mcp.client import EStatApiError, EStatClient, _calculate_pagination
 from e_stat_mcp.models.errors import EStatErrorCode
 from e_stat_mcp.settings import Settings
+
+
+class TestCalculatePagination:
+    """_calculate_pagination関数のテスト."""
+
+    def test_has_next_true(self) -> None:
+        """次ページがある場合にTrueを返すこと."""
+        has_next, next_pos = _calculate_pagination(
+            start_position=1, returned_count=10000, total_count=25000
+        )
+        assert has_next is True
+        assert next_pos == 10001
+
+    def test_has_next_false_at_end(self) -> None:
+        """最終ページの場合にFalseを返すこと."""
+        has_next, next_pos = _calculate_pagination(
+            start_position=1, returned_count=5000, total_count=5000
+        )
+        assert has_next is False
+        assert next_pos is None
+
+    def test_has_next_false_beyond_end(self) -> None:
+        """データが総数を超えた場合にFalseを返すこと."""
+        has_next, next_pos = _calculate_pagination(
+            start_position=10001, returned_count=5000, total_count=15000
+        )
+        assert has_next is False
+        assert next_pos is None
+
+    def test_returned_count_zero_prevents_infinite_loop(self) -> None:
+        """returned_count=0の場合はFalseを返すこと（無限ループ防止）."""
+        has_next, next_pos = _calculate_pagination(
+            start_position=1, returned_count=0, total_count=25000
+        )
+        assert has_next is False
+        assert next_pos is None
+
+    def test_middle_page(self) -> None:
+        """中間ページで正しく計算されること."""
+        has_next, next_pos = _calculate_pagination(
+            start_position=10001, returned_count=10000, total_count=25000
+        )
+        assert has_next is True
+        assert next_pos == 20001
+
+    def test_exactly_at_limit(self) -> None:
+        """ちょうどlimitでデータが終わる場合."""
+        # start_position=20001, returned=5000, total=25000
+        # 20001 + 5000 - 1 = 25000 == total_count → has_next=False
+        has_next, next_pos = _calculate_pagination(
+            start_position=20001, returned_count=5000, total_count=25000
+        )
+        assert has_next is False
+        assert next_pos is None
 
 
 @pytest.fixture
