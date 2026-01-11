@@ -1,0 +1,298 @@
+# MCP Tools Contract: e-Stat API連携MCPサーバー
+# Branch: 001-e-stat-mcp | Date: 2026-01-07
+
+openapi: "3.1.0"
+info:
+  title: e-Stat MCP Server Tools
+  version: "1.0.0"
+  description: |
+    e-Stat API連携MCPサーバーが提供するツール定義。
+    各ツールはMCPプロトコルを通じてAIアシスタントから呼び出される。
+
+# MCPツール定義（OpenAPI風の記述）
+x-mcp-tools:
+  - name: search_stats
+    description: |
+      キーワードや政府統計コードを指定して統計表を検索する。
+      該当する統計表の一覧（統計表ID、名称、調査年等）を返却する。
+    inputSchema:
+      type: object
+      properties:
+        keyword:
+          type: string
+          description: 検索キーワード（統計表名、調査名等に部分一致）
+        stats_code:
+          type: string
+          description: 政府統計コード（8桁の数字）
+        survey_years:
+          type: string
+          description: 調査年の範囲（例: "2020-2023"）
+        limit:
+          type: integer
+          default: 100
+          minimum: 1
+          maximum: 100000
+          description: 取得件数上限
+        start_position:
+          type: integer
+          default: 1
+          minimum: 1
+          description: 取得開始位置（ページネーション用）
+      additionalProperties: false
+    outputSchema:
+      type: array
+      items:
+        type: object
+        properties:
+          table_id:
+            type: string
+            description: 統計表ID
+          table_name:
+            type: string
+            description: 統計表名称
+          stat_name:
+            type: string
+            description: 政府統計名称
+          survey_date:
+            type: string
+            nullable: true
+            description: 調査年月
+          gov_org:
+            type: string
+            description: 作成機関名
+        required:
+          - table_id
+          - table_name
+          - stat_name
+          - gov_org
+
+  - name: get_stats_data
+    description: |
+      統計表IDを指定して統計データ（数値データ）を取得する。
+      絞り込み条件（地域、時点、分類等）を指定可能。
+    inputSchema:
+      type: object
+      properties:
+        stats_data_id:
+          type: string
+          description: 統計表ID（必須）
+        cd_tab:
+          type: string
+          description: 表章事項コード（カンマ区切りで複数指定可）
+        cd_cat01:
+          type: string
+          description: 分類事項コード01（カンマ区切りで複数指定可）
+        cd_cat02:
+          type: string
+          description: 分類事項コード02（カンマ区切りで複数指定可）
+        cd_area:
+          type: string
+          description: 地域コード（カンマ区切りで複数指定可）
+        cd_time:
+          type: string
+          description: 時間軸コード（カンマ区切りで複数指定可）
+        limit:
+          type: integer
+          default: 10000
+          minimum: 1
+          maximum: 100000
+          description: 取得件数上限
+        start_position:
+          type: integer
+          default: 1
+          minimum: 1
+          description: 取得開始位置（ページネーション用）
+      required:
+        - stats_data_id
+      additionalProperties: false
+    outputSchema:
+      type: object
+      properties:
+        total_count:
+          type: integer
+          description: 総データ件数
+        returned_count:
+          type: integer
+          description: 今回返却した件数
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              tab_name:
+                type: string
+                description: 表章事項名
+              category_names:
+                type: object
+                additionalProperties:
+                  type: string
+                description: 分類項目名（キー: 分類ID、値: 項目名）
+              area_name:
+                type: string
+                nullable: true
+                description: 地域名
+              time_name:
+                type: string
+                nullable: true
+                description: 時点名
+              value:
+                type: number
+                nullable: true
+                description: 統計値（数値）
+              value_raw:
+                type: string
+                description: 統計値（生値）
+              unit:
+                type: string
+                nullable: true
+                description: 単位
+            required:
+              - tab_name
+              - category_names
+              - value_raw
+      required:
+        - total_count
+        - returned_count
+        - data
+
+  - name: get_meta_info
+    description: |
+      統計表IDを指定してメタ情報（表章事項、分類事項、地域事項等の構造情報）を取得する。
+      データ取得前に統計表の構造を理解するために使用する。
+    inputSchema:
+      type: object
+      properties:
+        stats_data_id:
+          type: string
+          description: 統計表ID（必須）
+      required:
+        - stats_data_id
+      additionalProperties: false
+    outputSchema:
+      type: array
+      items:
+        type: object
+        properties:
+          class_id:
+            type: string
+            description: 分類ID（tab, cat01, cat02, area, time等）
+          class_name:
+            type: string
+            description: 分類名称
+          items:
+            type: array
+            items:
+              type: object
+              properties:
+                code:
+                  type: string
+                  description: コード
+                name:
+                  type: string
+                  description: 名称
+                level:
+                  type: string
+                  nullable: true
+                  description: 階層レベル
+                unit:
+                  type: string
+                  nullable: true
+                  description: 単位
+              required:
+                - code
+                - name
+        required:
+          - class_id
+          - class_name
+          - items
+
+  - name: list_datasets
+    description: |
+      公開データセットの一覧を取得する。
+      データセットは統計表に対する事前定義された絞り込み条件のセット。
+    inputSchema:
+      type: object
+      properties:
+        stats_data_id:
+          type: string
+          description: 統計表ID（指定した場合、その統計表のデータセットのみ返却）
+      additionalProperties: false
+    outputSchema:
+      type: array
+      items:
+        type: object
+        properties:
+          dataset_id:
+            type: string
+            description: データセットID
+          dataset_name:
+            type: string
+            description: データセット名
+          stats_data_id:
+            type: string
+            description: 対象統計表ID
+          is_public:
+            type: boolean
+            description: 公開状態
+          description:
+            type: string
+            nullable: true
+            description: 説明
+        required:
+          - dataset_id
+          - dataset_name
+          - stats_data_id
+          - is_public
+
+  - name: get_dataset_data
+    description: |
+      データセットIDを指定して、そのデータセットに定義された条件で統計データを取得する。
+    inputSchema:
+      type: object
+      properties:
+        dataset_id:
+          type: string
+          description: データセットID（必須）
+        limit:
+          type: integer
+          default: 10000
+          minimum: 1
+          maximum: 100000
+          description: 取得件数上限
+        start_position:
+          type: integer
+          default: 1
+          minimum: 1
+          description: 取得開始位置（ページネーション用）
+      required:
+        - dataset_id
+      additionalProperties: false
+    outputSchema:
+      $ref: "#/x-mcp-tools/1/outputSchema"  # get_stats_dataと同じ
+
+# エラーレスポンス定義
+x-mcp-errors:
+  - code: AUTH_ERROR
+    status: 100
+    message: "認証に失敗しました。アプリケーションIDを確認してください。"
+    user_action: "環境変数 E_STAT_APP_ID にe-StatのアプリケーションIDを設定してください。"
+
+  - code: NO_DATA
+    status: 1
+    message: "該当するデータが見つかりませんでした。"
+    user_action: "検索条件を変更して再度お試しください。"
+
+  - code: MISSING_PARAM
+    status: 101
+    message: "必須パラメータが指定されていません。"
+    user_action: "必要なパラメータを指定してください。"
+
+  - code: INVALID_PARAM
+    status: 102
+    message: "パラメータ値が不正です。"
+    user_action: "指定したパラメータの値を確認してください。"
+
+  - code: DATA_NOT_FOUND
+    status: 300
+    message: "指定されたデータが存在しません。"
+    user_action: "統計表IDまたはデータセットIDを確認してください。"
